@@ -110,6 +110,7 @@ class SignalHandler(object):
             self.log.info('Signal handler pausing until it receives SIGALRM, SIGCON or SIGUSR1')
         signal.signal(signal.SIGCONT, callback_function)
         signal.pause()
+        self.log.info('Signal handler resuming')
         if signum == signal.SIGALRM:
             return True
         else:
@@ -197,14 +198,14 @@ class SignalHandler(object):
     def reg_on_exit(self, function, persistent=False, *args, **kwargs):
         """ Register a function/method to be called on program exit,
         will get executed regardless of successs/failure of the execution """
-        self.log.info("Registered function/method {0} to call on exit".format(function.__name__))
+        self.log.info("Registered function/method {0} to call on exit signal".format(function.__name__))
         event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
         self.exit_callbacks.append(event)
         return event
 
     def reg_on_abort(self, function, persistent=False, *args, **kwargs):
         """ Register a function/method to be called on aborting execution """
-        self.log.info("Registered function/method {0} to call on abort".format(function.__name__))
+        self.log.info("Registered function/method {0} to call on abort signal".format(function.__name__))
         event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
         self.abort_callbacks.append(event)
         return event
@@ -213,7 +214,7 @@ class SignalHandler(object):
         """ Register a function/method to be called when a user or another
         program asks for an update, when status is done it will start running
         any tasks registered with the reg_on_resume method"""
-        self.log.info("Registered function/method {0} to call on status".format(function.__name__))
+        self.log.info("Registered function/method {0} to call on status signal".format(function.__name__))
         event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
         self.status_callbacks.append(event)
         return event
@@ -222,7 +223,7 @@ class SignalHandler(object):
         """ Register a function/method to be called if the system needs to
         resume a previously halted or paused execution, including status
         requests."""
-        self.log.info("Registered function/method {0} to call on resume".format(function.__name__))
+        self.log.info("Registered function/method {0} to call on resume signal".format(function.__name__))
         event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
         self.resume_callbacks.append(event)
         return event

@@ -24,23 +24,25 @@
 
 # Send success signal to other process by name
 function signal_success() {
-    kill -s SIGCONT `pgrep -f $1`
+    echo "$0 Signaling success to parent: $PPID"
+    kill -s SIGCONT $PPID  #`pgrep -f example.py`
 }
 
 # Send failure signal to other process by name
 function signal_failure() {
-    kill -s SIGUSR2  `pgrep -f $1`
+    echo "$0 Signaling failure to parent: $PPID"
+    kill -s SIGUSR2 $PPID #`pgrep -f example.py`
 }
 
 
 # Exit on failure function
 function exit_on_fail {
-    color_echo red "Last command did not execute successfully but is required!" >&2
-    debug 10 "[$( caller )] $*"
-    debug 10 "BASH_SOURCE: ${BASH_SOURCE[*]}"
-    debug 10 "BASH_LINENO: ${BASH_LINENO[*]}"
-    debug 0  "FUNCNAME: ${FUNCNAME[*]}"
-    color_echo red "Exiting and rolling back all changes!" >&2
+    echo "$0 Last command did not execute successfully but is required!" >&2
+    echo "$0 [$( caller )] $*"
+    echo "$0 BASH_SOURCE: ${BASH_SOURCE[*]}"
+    echo "$0 BASH_LINENO: ${BASH_LINENO[*]}"
+    echo "$0 FUNCNAME: ${FUNCNAME[*]}"
+    echo "$0 Exiting and rolling back all changes!" >&2
     # Tell deployment process about the error
     signal_failure 'deploy.py'
     exit 1
@@ -52,17 +54,17 @@ function exit_on_fail {
 declare -a on_sig_items
 
 function on_exit() {
-    debug 10 "Received SIGEXIT, Cleaning up: $i"
+    echo "$0 Received SIGEXIT, Cleaning up: $i"
     for i in "${on_sig_items[@]}"; do
-	debug 10 "Executing cleanup statement: $i"
+	echo "$0 Executing cleanup statement: $i"
       	eval $i
     done
 }
 
 function on_break() {
-    color_echo red "Signal receied, unexpected exit"
+    echo "$0 Signal receied, unexpected exit"
     for i in "${on_sig_items[@]}"; do
-        color_echo red "Executing cleanup statement: $i"
+        echo "$0 Executing cleanup statement: $i"
         eval $i
     done
 }
@@ -71,15 +73,14 @@ function add_on_sig() {
     local n=${#on_sig_items[*]}
     on_sig_items[$n]="$*"
     if [[ $n -eq 0 ]]; then
-        debug 10 "Setting up signal trap"
-        trap on_exit EXIT
+        echo "$0 Setting up signal trap"
+        #trap on_exit EXIT
 	trap on_break INT QUIT TERM
     fi
 }
 
-echo "$0 Sleeping for 10 seconds then signaling sucess"
-echo "CTRL-C and SIGEXIT will be passed on as a fail"
+echo "$0 Sleeping for 10 seconds then signaling success"
+echo "$0 SIGINT passed to PID $$ will be passed on as a fail"
 add_on_sig signal_failure 'example.py'
 sleep 10
 signal_success 'example.py'
-exit 0

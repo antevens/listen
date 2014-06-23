@@ -32,8 +32,8 @@ if sys.version < "2.7.0":
     print("listen requires Python 2.7 or more recent")
     sys.exit(1)
 
-from listen.listen import SignalHandler
+from listen.signal_handler import SignalHandler
 
-__all__ = ["SignalHandler"]
+__all__ = ["listen"]
 
 __version__ = "0.1.0"

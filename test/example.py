@@ -28,13 +28,12 @@ import sys
 import os
 import logging
 import listen
-import time
 import subprocess
 import tempfile
 
 
 class Example(object):
-    def __init__(self, verbose=False, cleanup=True):
+    def __init__(self, verbose=True):
 
         # Create a logger for Example project
         console_handler = logging.StreamHandler()
@@ -44,9 +43,6 @@ class Example(object):
         self.log = logging.getLogger('example')
         self.log.setLevel(logging.DEBUG)
         self.log.addHandler(console_handler)
-
-        # Remember if we are supposed to clean up after ourselves
-        self.cleanup = cleanup
 
         # A Popen object for any curretly running process
         self.external_running_process = None
@@ -70,8 +66,7 @@ class Example(object):
         kill_event = self.sig_hand.reg_on_status(self.kill_external)
 
         # Run tests that can be skipped by passing a SIGINFO to this process
-        #really_long_and_boring_test()
-        time.sleep(100)
+        return self.run('bash', '-c', 'sleep 10')
 
         # Unregister signal handlers used to skip tests
         self.sig_hand.del_status_event(kill_event)
@@ -82,8 +77,10 @@ class Example(object):
         subprocess.Popen(['bash', 'external_process.bash'])
 
         if self.sig_hand.pause(3600):
-            self.log.error("Timeout while waiting for external process...")
-            raise Exception
+            self.log.error("Timeout while waiting for external process")
+            raise
+        else:
+            self.log.info("Got signal callback from external process")
 
         # Trigger a synchronous external action, wait for exit status to be
         # returned
@@ -95,7 +92,7 @@ class Example(object):
         """
         self.log.warning("Rolling back")
         try:
-            os.remove(tempfile)
+            os.remove(self.tempfile[1])
         except:
             self.log.exception("Failed to rollback")
 
@@ -146,9 +143,10 @@ class Example(object):
             self.run_tests()
             # Do the work that needs to be done
             self.run_tasks()
-        except Exception:
-            self.log.exception("An error was raised during the important bit")
+        except:
+            self.log.exception("Error running main")
             self.rollback()
+            raise
 
 example = Example()
 example.main()
