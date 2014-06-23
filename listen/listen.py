@@ -1,0 +1,228 @@
+#!/usr/bin/python
+# -*- coding: utf8 -*-
+"""
+The MIT License (MIT)
+
+Copyright (c) 2014 Jarl Stefansson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+import os
+import os.path
+import signal
+import sys
+import logging
+
+
+class SignalHandler(object):
+    """ Asynchronous signal handling for OS signals, see 'man kill'"""
+    restart_signals = (signal.SIGHUP, )
+    abort_signals = (signal.SIGTERM, signal.SIGINT, signal.SIGQUIT)
+    pause_signals = (signal.SIGTSTP, )
+    resume_signals = (signal.SIGALRM, signal.SIGCONT, signal.SIGUSR1)
+    status_signals = (29, )  # 29 == SIGINFO
+    error_signals = (signal.SIGUSR2, )
+    handled_signals = restart_signals + abort_signals + pause_signals + resume_signals + status_signals + error_signals
+
+    def __init__(self, logger, signals=handled_signals, handler=None):
+        if handler is None:
+            handler = self.default_handler
+        self.log = logger
+        self.log.info('Registering Signal Handler')
+        self.exit_callbacks = []
+        self.abort_callbacks = []
+        self.status_callbacks = []
+        self.resume_callbacks = []
+        self.set_handler(signals, handler)
+
+    def set_handler(self, signals, handler):
+        """ Takes a list of signals and sets a handler for them """
+        for sig in signals:
+            self.log.debug("Creating handler for signal: {0}".format(sig))
+            signal.signal(sig, handler)
+
+    def pseudo_handler(self, signum, frame):
+        """ Pseudo handler placeholder while signal is beind processed """
+        self.log.warn("Received sigal {0} but system is already busy processing a previous signal, current frame: {1}".format(signum, str(frame)))
+
+    def default_handler(self, signum, frame):
+        """ Default handler, a generic callback method for signal processing"""
+        self.log.debug("Signal handler called with signal: {0}".format(signum))
+        # 1. If signal is HUP restart the python process
+        # 2. If signal is TERM, INT or QUIT we try to cleanup then exit with -1
+        # 3. If signal is STOP or TSTP we pause
+        # 4. If signal is CONT or USR1 we continue
+        # 5. If signal is INFO we print status
+        # 6. If signal is USR2 we we abort and then exit with -1
+
+        if signum in self.restart_signals:
+            self.set_handler(self.handled_signals, self.pseudo_handler)
+            self._cleanup()
+            os.execl('python', 'python', * sys.argv)
+        elif signum in self.abort_signals:
+            self.abort(signum)
+        elif signum in self.pause_signals:
+            self.pause(signum)
+        elif signum in self.resume_signals:
+            self.resume(signum)
+        elif signum in self.status_signals:
+            self.status(signum)
+        elif signum in self.error_signals:
+            self.log.error('Signal handler received error signal from an external process, aborting')
+            self.abort(signum)
+        else:
+            self.log.info("Unhandled signal received: {0}".format(signum))
+            raise
+
+    def pause(self, signum, seconds=0, callback_function=None):
+        """
+        Pause execution, execution will resume in X seconds or when the
+        appropriate resume signal is received. Execution will jump to the
+        callback_function, the default callback function is the handler
+        method which will run all tasks registered with the reg_on_resume
+        methodi.
+        Returns True if timer expired, otherwise returns False
+        """
+        if callback_function is None:
+            callback_function = self.default_handler
+        if seconds > 0:
+            self.log.info("Signal handler pausing for {0} seconds or until it receives SIGALRM, SIGCON or SIGUSR1".format(seconds))
+            signal.signal(signal.SIGALRM, callback_function)
+            signal.alarm(seconds)
+        else:
+            self.log.info('Signal handler pausing until it receives SIGALRM, SIGCON or SIGUSR1')
+        signal.signal(signal.SIGCONT, callback_function)
+        signal.pause()
+        if signum == signal.SIGALRM:
+            return True
+        else:
+            return False
+
+    def abort(self, signum):
+        """ Run all abort tasks, then all exit tasks, then exit with error
+        return status"""
+        self.log.info('Signal handler received abort request')
+        self._abort(signum)
+        self._exit(signum)
+        sys.exit(1)
+
+    def status(self, signum):
+        """ Run all status tasks, then run all tasks in the resume queue"""
+        self.log.debug('Signal handler reporting status')
+        for status_call in self.status_callbacks:
+            # If callback is non persistent we remove it
+            if not status_call['persistent']:
+                self.status_callbacks.remove(status_call)
+            self.log.info("Calling {0}({1},{2})".format(status_call['function'].__name__, status_call['args'], status_call['kwargs']))
+            apply(status_call['function'], status_call['args'], status_call['kwargs'])
+
+        self._resume(signum)
+
+    def resume(self, signum):
+        """ Run all resume tasks, presumably resuming a previously halted execution """
+        self._resume(signum)
+
+    def _abort(self, signum):
+        self.log.info('Signal handler initiated abort/cleanup')
+        current_handler = signal.getsignal(signum)
+        self.set_handler(self.abort_signals, self.pseudo_handler)
+        for abort_call in self.abort_callbacks[:]:
+            self.abort_callbacks.remove(abort_call)
+            self.log.info("Calling {0}({1},{2})".format(abort_call['function'].__name__, abort_call['args'], abort_call['kwargs']))
+            apply(abort_call['function'], abort_call['args'], abort_call['kwargs'])
+        self.set_handler(self.abort_signals, current_handler)
+
+    def _exit(self, signum):
+        self.log.info('Signal handler initiated exit')
+        current_handler = signal.getsignal(signum)
+        self.set_handler(self.abort_signals, self.pseudo_handler)
+        for exit_call in self.exit_callbacks[:]:
+            self.exit_callbacks.remove(exit_call)
+            self.log.info("Calling {0}({1},{2})".format(exit_call['function'].__name__, exit_call['args'], exit_call['kwargs']))
+            apply(exit_call['function'], exit_call['args'], exit_call['kwargs'])
+        self.set_handler(self.abort_signals, current_handler)
+
+    def _resume(self, signum):
+        self.log.debug('Signal handler resuming')
+        resume_handler = signal.getsignal(signum)
+        pause_handler = signal.getsignal(signal.SIGTSTP)
+        self.set_handler(self.resume_signals, self.pseudo_handler)
+        self.set_handler(self.pause_signals, self.pseudo_handler)
+        for resume_call in self.resume_callbacks:
+            if not resume_call['persistent']:
+                self.resume_callbacks.remove(resume_call)
+            self.log.info("Calling {0}({1},{2})".format(resume_call['function'].__name__, resume_call['args'], resume_call['kwargs']))
+            apply(resume_call['function'], resume_call['args'], resume_call['kwargs'])
+        self.set_handler(self.resume_signals, resume_handler)
+        self.set_handler(self.pause_signals, pause_handler)
+
+    def _unreg_event(self, event_list, event):
+        """ Tries to remove a registered event without triggering it """
+        self.log.info("Removing event {0}({1},{2})".format(event['function'].__name__, event['args'], event['kwargs']))
+        try:
+            event_list.remove(event)
+        except ValueError:
+            self.log.warn("Unable to remove event {0}({1},{2}) , not found in list: {3}".format(event['function'].__name__, event['args'], event['kwargs'], event_list))
+            pass
+
+    def del_exit_event(self, event):
+        self._unreg_event(self, self.exit_callbacks, event)
+
+    def del_abort_event(self, event):
+        self._unreg_event(self, self.abort_callbacks, event)
+
+    def del_status_event(self, event):
+        self._unreg_event(self, self.status_callbacks, event)
+
+    def del_resume_event(self, event):
+        self._unreg_event(self, self.resume_callbacks, event)
+
+    def reg_on_exit(self, function, persistent=False, *args, **kwargs):
+        """ Register a function/method to be called on program exit,
+        will get executed regardless of successs/failure of the execution """
+        self.log.info("Registered function/method {0} to call on exit".format(function.__name__))
+        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        self.exit_callbacks.append(event)
+        return event
+
+    def reg_on_abort(self, function, persistent=False, *args, **kwargs):
+        """ Register a function/method to be called on aborting execution """
+        self.log.info("Registered function/method {0} to call on abort".format(function.__name__))
+        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        self.abort_callbacks.append(event)
+        return event
+
+    def reg_on_status(self, function, persistent=False, *args, **kwargs):
+        """ Register a function/method to be called when a user or another
+        program asks for an update, when status is done it will start running
+        any tasks registered with the reg_on_resume method"""
+        self.log.info("Registered function/method {0} to call on status".format(function.__name__))
+        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        self.status_callbacks.append(event)
+        return event
+
+    def reg_on_resume(self, function, persistent=False, *args, **kwargs):
+        """ Register a function/method to be called if the system needs to
+        resume a previously halted or paused execution, including status
+        requests."""
+        self.log.info("Registered function/method {0} to call on resume".format(function.__name__))
+        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        self.resume_callbacks.append(event)
+        return event

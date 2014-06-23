@@ -1,17 +1,45 @@
-listen
-======
+#!/usr/bin/python
+# -*- coding: utf8 -*-
+"""
+The MIT License (MIT)
 
-Simple but powerful signal handling to process OS signals in python
+Copyright (c) 2014 SDElements
 
-Example Usage:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+import sys
+import os
+import logging
+import listen
+import time
+import subprocess
+import tempfile
+
 
 class Example(object):
-    def __init__(self, verbose=False, cleanup=True)):
+    def __init__(self, verbose=False, cleanup=True):
 
         # Create a logger for Example project
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
-        console_handler.setFormatter(logging.Formatter( '%(levelname)s - %(message)s'))
+        console_handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
 
         self.log = logging.getLogger('example')
         self.log.setLevel(logging.DEBUG)
@@ -27,31 +55,39 @@ class Example(object):
         self.user_aborted = False
 
         # Create a signal handler
-        self.sig_hand = SignalHandler(self.log)
+        self.sig_hand = listen.SignalHandler(self.log)
+
+        # Create a temporary file
+        self.tempfile = tempfile.mkstemp()
 
     def run_tests(self):
         """
         Runs test suite
         """
-        self.log.info("Running tests...")
+        self.log.info("Running tests... Pass SIGINFO (ctrl-t) to skip")
 
         # Register signal handler to cancel tests on SIGINFO (ctrl-t on Mac)
         kill_event = self.sig_hand.reg_on_status(self.kill_external)
 
         # Run tests that can be skipped by passing a SIGINFO to this process
-        really_long_and_boring_test()
+        #really_long_and_boring_test()
+        time.sleep(100)
 
         # Unregister signal handlers used to skip tests
         self.sig_hand.del_status_event(kill_event)
 
-    def update_system(self):
-        # Trigger an external action to update system, wait until update
-        finishes or timeout after 1 hour
-        trigger_external_process()
+    def run_tasks(self):
+        # Trigger an asynchronous external action, wait until if sends back
+        # A signal or timeout after 1 hour
+        subprocess.Popen(['bash', 'external_process.bash'])
 
         if self.sig_hand.pause(3600):
-            self.log.error("Timeout while waiting for system updates...")
-            raise TimeoutError
+            self.log.error("Timeout while waiting for external process...")
+            raise Exception
+
+        # Trigger a synchronous external action, wait for exit status to be
+        # returned
+        return self.run('bash', 'external_process.bash')
 
     def rollback(self):
         """
@@ -59,8 +95,7 @@ class Example(object):
         """
         self.log.warning("Rolling back")
         try:
-            delete_some_files(self.old_release_path)
-            restart_something()
+            os.remove(tempfile)
         except:
             self.log.exception("Failed to rollback")
 
@@ -75,14 +110,15 @@ class Example(object):
         """
         self.log.debug("Running '%s'", ' '.join([command] + list(args)))
         self.external_running_process = subprocess.Popen([command] + list(args),
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT)
         # Capture results so they can be returned, but also pass them to logger
         # so they can stored and/or output to user.
         result = ''
         while True:
             line = self.external_running_process.stdout.readline()
-            if not line: break
+            if not line:
+                break
             line = line.strip()
             result += line
             self.log.debug('> ' + line)
@@ -109,8 +145,8 @@ class Example(object):
             # Run the tests
             self.run_tests()
             # Do the work that needs to be done
-            some_really_important_work()
-        except Exception as e:
+            self.run_tasks()
+        except Exception:
             self.log.exception("An error was raised during the important bit")
             self.rollback()
 
