@@ -25,15 +25,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from __future__ import print_function  # This API requires Python 2.7 or more recent
+# Prepare for deprication of versions < 2.7
+#from __future__ import print_function  # This API requires Python 2.7 or more recent
 
-import sys
-if sys.version < "2.7.0":
-    print("listen requires Python 2.7 or more recent")
-    sys.exit(1)
+#import sys
+#if sys.version < "2.7.0":
+#    print("listen requires Python 2.7 or more recent")
+#    sys.exit(1)
 
 from listen.signal_handler import SignalHandler
 
 __all__ = ["listen"]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
