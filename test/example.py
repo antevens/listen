@@ -55,6 +55,7 @@ class Example(object):
 
         # Create a temporary file
         self.tempfile = tempfile.mkstemp()
+        self.log.info("Creating temporary file {0}".format(self.tempfile[1]))
 
     def run_tests(self):
         """
@@ -66,7 +67,7 @@ class Example(object):
         kill_event = self.sig_hand.reg_on_status(self.kill_external)
 
         # Run tests that can be skipped by passing a SIGINFO to this process
-        return self.run('bash', '-c', 'sleep 10')
+        self.run('bash', '-c', 'sleep 10')
 
         # Unregister signal handlers used to skip tests
         self.sig_hand.del_status_event(kill_event)
@@ -93,10 +94,9 @@ class Example(object):
         self.log.warning("Rolling back")
         try:
             os.remove(self.tempfile[1])
+            self.log.info("Removing temporary file: {0}".format(self.tempfile[1]))
         except:
             self.log.exception("Failed to rollback")
-
-        sys.exit(-1)
 
     def run(self, command, *args):
         """

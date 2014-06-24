@@ -41,7 +41,7 @@ class SignalHandler(object):
     error_signals = (signal.SIGUSR2, )
     handled_signals = restart_signals + abort_signals + pause_signals + resume_signals + status_signals + error_signals
 
-    def __init__(self, logger, signals=handled_signals, handler=None):
+    def __init__(self, logger=logging, signals=handled_signals, handler=None):
         if handler is None:
             handler = self.default_handler
         self.log = logger
@@ -88,7 +88,7 @@ class SignalHandler(object):
             self.log.error('Signal handler received error signal from an external process, aborting')
             self.abort(signum)
         else:
-            self.log.info("Unhandled signal received: {0}".format(signum))
+            self.log.error("Unhandled signal received: {0}".format(signum))
             raise
 
     def pause(self, signum, seconds=0, callback_function=None):
@@ -122,7 +122,7 @@ class SignalHandler(object):
         self.log.info('Signal handler received abort request')
         self._abort(signum)
         self._exit(signum)
-        sys.exit(1)
+        os._exit(1)
 
     def status(self, signum):
         """ Run all status tasks, then run all tasks in the resume queue"""
@@ -131,7 +131,7 @@ class SignalHandler(object):
             # If callback is non persistent we remove it
             if not status_call['persistent']:
                 self.status_callbacks.remove(status_call)
-            self.log.info("Calling {0}({1},{2})".format(status_call['function'].__name__, status_call['args'], status_call['kwargs']))
+            self.log.debug("Calling {0}({1},{2})".format(status_call['function'].__name__, status_call['args'], status_call['kwargs']))
             apply(status_call['function'], status_call['args'], status_call['kwargs'])
 
         self._resume(signum)
@@ -141,24 +141,24 @@ class SignalHandler(object):
         self._resume(signum)
 
     def _abort(self, signum):
-        self.log.info('Signal handler initiated abort/cleanup')
-        current_handler = signal.getsignal(signum)
+        self.log.debug('Signal handler initiated abort/cleanup')
+        #current_handler = signal.getsignal(signum)
         self.set_handler(self.abort_signals, self.pseudo_handler)
         for abort_call in self.abort_callbacks[:]:
             self.abort_callbacks.remove(abort_call)
-            self.log.info("Calling {0}({1},{2})".format(abort_call['function'].__name__, abort_call['args'], abort_call['kwargs']))
+            self._log_event(abort_call)
             apply(abort_call['function'], abort_call['args'], abort_call['kwargs'])
-        self.set_handler(self.abort_signals, current_handler)
+        #self.set_handler(self.abort_signals, current_handler)
 
     def _exit(self, signum):
         self.log.info('Signal handler initiated exit')
-        current_handler = signal.getsignal(signum)
+        #current_handler = signal.getsignal(signum)
         self.set_handler(self.abort_signals, self.pseudo_handler)
         for exit_call in self.exit_callbacks[:]:
             self.exit_callbacks.remove(exit_call)
-            self.log.info("Calling {0}({1},{2})".format(exit_call['function'].__name__, exit_call['args'], exit_call['kwargs']))
+            self._log_event(exit_call)
             apply(exit_call['function'], exit_call['args'], exit_call['kwargs'])
-        self.set_handler(self.abort_signals, current_handler)
+        #self.set_handler(self.abort_signals, current_handler)
 
     def _resume(self, signum):
         self.log.debug('Signal handler resuming')
@@ -169,61 +169,71 @@ class SignalHandler(object):
         for resume_call in self.resume_callbacks:
             if not resume_call['persistent']:
                 self.resume_callbacks.remove(resume_call)
-            self.log.info("Calling {0}({1},{2})".format(resume_call['function'].__name__, resume_call['args'], resume_call['kwargs']))
+            self._log_event(resume_call)
             apply(resume_call['function'], resume_call['args'], resume_call['kwargs'])
         self.set_handler(self.resume_signals, resume_handler)
         self.set_handler(self.pause_signals, pause_handler)
 
     def _unreg_event(self, event_list, event):
         """ Tries to remove a registered event without triggering it """
-        self.log.info("Removing event {0}({1},{2})".format(event['function'].__name__, event['args'], event['kwargs']))
+        self.log.debug("Removing event {0}({1},{2})".format(event['function'].__name__, event['args'], event['kwargs']))
         try:
             event_list.remove(event)
         except ValueError:
             self.log.warn("Unable to remove event {0}({1},{2}) , not found in list: {3}".format(event['function'].__name__, event['args'], event['kwargs'], event_list))
             pass
 
+    def _log_event(self, event):
+        try:
+            self.log.debug("Calling {0}({1},{2})".format(event['function'].__name__, event['args'], event['kwargs']))
+        except AttributeError:
+            self.log.debug("Calling unbound function/method {0}".format(str(event)))
+
+    def _create_event(self, callable_object, signal_name, persistent, *args, **kwargs):
+        try:
+            self.log.debug("Registered function/method {0} to call on {1} signal".format(callable_object.__name__, signal_name))
+        except AttributeError:
+            self.log.debug("Registered unbound function/method {0} to call on {1} signal".format((callable_object, signal_name)))
+
+        return {'function': callable_object, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+
     def del_exit_event(self, event):
-        self._unreg_event(self, self.exit_callbacks, event)
+        self._unreg_event(self.exit_callbacks, event)
 
     def del_abort_event(self, event):
-        self._unreg_event(self, self.abort_callbacks, event)
+        self._unreg_event(self.abort_callbacks, event)
 
     def del_status_event(self, event):
-        self._unreg_event(self, self.status_callbacks, event)
+        self._unreg_event(self.status_callbacks, event)
 
     def del_resume_event(self, event):
-        self._unreg_event(self, self.resume_callbacks, event)
+        self._unreg_event(self.resume_callbacks, event)
 
-    def reg_on_exit(self, function, persistent=False, *args, **kwargs):
+    def reg_on_exit(self, callable_object, persistent=False, *args, **kwargs):
         """ Register a function/method to be called on program exit,
         will get executed regardless of successs/failure of the execution """
-        self.log.info("Registered function/method {0} to call on exit signal".format(function.__name__))
-        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        event = self._create_event(callable_object, 'exit', persistent, *args, **kwargs)
         self.exit_callbacks.append(event)
         return event
 
-    def reg_on_abort(self, function, persistent=False, *args, **kwargs):
+    def reg_on_abort(self, callable_object, persistent=False, *args, **kwargs):
         """ Register a function/method to be called on aborting execution """
-        self.log.info("Registered function/method {0} to call on abort signal".format(function.__name__))
-        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        event = self._create_event(callable_object, 'abort', persistent, *args, **kwargs)
         self.abort_callbacks.append(event)
         return event
 
-    def reg_on_status(self, function, persistent=False, *args, **kwargs):
+    def reg_on_status(self, callable_object, persistent=False, *args, **kwargs):
         """ Register a function/method to be called when a user or another
         program asks for an update, when status is done it will start running
         any tasks registered with the reg_on_resume method"""
-        self.log.info("Registered function/method {0} to call on status signal".format(function.__name__))
-        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        event = self._create_event(callable_object, 'status', persistent, *args, **kwargs)
         self.status_callbacks.append(event)
         return event
 
-    def reg_on_resume(self, function, persistent=False, *args, **kwargs):
+    def reg_on_resume(self, callable_object, persistent=False, *args, **kwargs):
         """ Register a function/method to be called if the system needs to
         resume a previously halted or paused execution, including status
         requests."""
-        self.log.info("Registered function/method {0} to call on resume signal".format(function.__name__))
-        event = {'function': function, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
+        event = self._create_event(callable_object, 'resume', persistent, *args, **kwargs)
         self.resume_callbacks.append(event)
         return event
