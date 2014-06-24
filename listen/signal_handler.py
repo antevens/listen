@@ -184,8 +184,11 @@ class SignalHandler(object):
         try:
             event_list.remove(event)
         except ValueError:
-            self.log.warn("Unable to remove event {0}({1},{2}) , not found in list: {3}".format(event['function'].__name__, event['args'], event['kwargs'], event_list))
-            pass
+            try:
+                self.log.warn("Unable to remove event {0}({1},{2}) , not found in list: {3}".format(event['function'].__name__, event['args'], event['kwargs'], event_list))
+            except AttributeError:
+                self.log.debug("Unable to remove event {0}".format(str(event)))
+            raise KeyError('Unable to unregister the specified event from the signals specified')
 
     def _log_event(self, event):
         try:
