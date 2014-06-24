@@ -176,7 +176,11 @@ class SignalHandler(object):
 
     def _unreg_event(self, event_list, event):
         """ Tries to remove a registered event without triggering it """
-        self.log.debug("Removing event {0}({1},{2})".format(event['function'].__name__, event['args'], event['kwargs']))
+        try:
+            self.log.debug("Removing event {0}({1},{2})".format(event['function'].__name__, event['args'], event['kwargs']))
+        except AttributeError:
+            self.log.debug("Removing event {0}".format(str(event)))
+
         try:
             event_list.remove(event)
         except ValueError:
@@ -193,7 +197,7 @@ class SignalHandler(object):
         try:
             self.log.debug("Registered function/method {0} to call on {1} signal".format(callable_object.__name__, signal_name))
         except AttributeError:
-            self.log.debug("Registered unbound function/method {0} to call on {1} signal".format((callable_object, signal_name)))
+            self.log.debug("Registered unbound function/method {0} to call on {1} signal".format(callable_object, signal_name))
 
         return {'function': callable_object, 'args': args, 'kwargs': kwargs, 'persistent': persistent}
 

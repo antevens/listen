@@ -45,7 +45,7 @@ setup(
     keywords = ["singal", "unix", "kill", "abort", "quit", "info"],
     license = "LICENSE",
     description = "Simple but powerful signal handling to process OS signals in python",
-    long_description = open("README.md").read(),
+    long_description = open("README").read(),
     # Support both formats for required packages, build automatically
     install_requires = (),
     requires = (),

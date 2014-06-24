@@ -21,7 +21,7 @@ Simple but powerful signal handling to process OS signals in python
     external_process.wait()
 
 ### Unregister signal handler
-    self.sig_hand.del_status_event(kill_event)
+    sig_hand.del_status_event(kill_event)
 
 
 For a more detailed example including interaction with bash please see
