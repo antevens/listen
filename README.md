@@ -3,7 +3,7 @@ listen
 
 Simple but powerful signal handling to process OS signals in python
 
-Example Usage:
+##Example Usage:
 
     import listen
     import subprocess
