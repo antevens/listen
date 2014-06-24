@@ -32,9 +32,11 @@ try:
 except ImportError:
     from distutils.core import setup
 
+files = ["README.md"]
+
 setup(
     name = "listen",
-    version = "0.1.0",
+    version = "0.1.1",
     author = "Jarl Stefansson",
     author_email = "jarl.stefansson@gmail.com",
     packages = ["listen", "test"],
