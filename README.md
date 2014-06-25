@@ -8,7 +8,7 @@ Simple but powerful signal handling to process OS signals in python
     import listen
     import subprocess
 
-### Instanciate Signal Handle
+### Instanciate SignalHandler
     sig_hand = listen.SignalHandler()
 
 ### Start external process

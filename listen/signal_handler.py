@@ -110,7 +110,7 @@ class SignalHandler(object):
             self.log.info('Signal handler pausing until it receives SIGALRM or SIGCONT')
         signal.signal(signal.SIGCONT, callback_function)
         signal.pause()
-        self.log.info('Signal handler resuming')
+        self.log.info('Signal handler resuming from pause')
         if signum == signal.SIGALRM:
             return True
         else:
@@ -126,7 +126,7 @@ class SignalHandler(object):
 
     def status(self, signum):
         """ Run all status tasks, then run all tasks in the resume queue"""
-        self.log.debug('Signal handler reporting status')
+        self.log.debug('Signal handler got status signal')
         for status_call in self.status_callbacks:
             # If callback is non persistent we remove it
             if not status_call['persistent']:
@@ -161,7 +161,7 @@ class SignalHandler(object):
         #self.set_handler(self.abort_signals, current_handler)
 
     def _resume(self, signum):
-        self.log.debug('Signal handler resuming')
+        self.log.debug('Signal handler processing resume tasks')
         resume_handler = signal.getsignal(signum)
         pause_handler = signal.getsignal(signal.SIGTSTP)
         self.set_handler(self.resume_signals, self.pseudo_handler)
