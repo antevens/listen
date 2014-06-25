@@ -36,8 +36,8 @@ class SignalHandler(object):
     restart_signals = (signal.SIGHUP, )
     abort_signals = (signal.SIGTERM, signal.SIGINT, signal.SIGQUIT)
     pause_signals = (signal.SIGTSTP, )
-    resume_signals = (signal.SIGALRM, signal.SIGCONT, signal.SIGUSR1)
-    status_signals = (29, )  # 29 == SIGINFO
+    resume_signals = (signal.SIGALRM, signal.SIGCONT)
+    status_signals = (signal.SIGUSR1, 29)  # 29 == SIGINFO
     error_signals = (signal.SIGUSR2, )
     handled_signals = restart_signals + abort_signals + pause_signals + resume_signals + status_signals + error_signals
 
@@ -103,11 +103,11 @@ class SignalHandler(object):
         if callback_function is None:
             callback_function = self.default_handler
         if seconds > 0:
-            self.log.info("Signal handler pausing for {0} seconds or until it receives SIGALRM, SIGCON or SIGUSR1".format(seconds))
+            self.log.info("Signal handler pausing for {0} seconds or until it receives SIGALRM or SIGCONT".format(seconds))
             signal.signal(signal.SIGALRM, callback_function)
             signal.alarm(seconds)
         else:
-            self.log.info('Signal handler pausing until it receives SIGALRM, SIGCON or SIGUSR1')
+            self.log.info('Signal handler pausing until it receives SIGALRM or SIGCONT')
         signal.signal(signal.SIGCONT, callback_function)
         signal.pause()
         self.log.info('Signal handler resuming')

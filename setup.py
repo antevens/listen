@@ -36,13 +36,13 @@ files = ["README.md"]
 
 setup(
     name = "listen",
-    version = "0.1.1",
+    version = "0.1.2",
     author = "Jarl Stefansson",
     author_email = "jarl.stefansson@gmail.com",
     packages = ["listen", "test"],
     scripts = (),
     url = "https://github.com/jalli/listen",
-    keywords = ["singal", "unix", "kill", "abort", "quit", "info"],
+    keywords = ["signal", "unix", "kill", "abort", "quit", "info"],
     license = "LICENSE",
     description = "Simple but powerful signal handling to process OS signals in python",
     long_description = open("README").read(),
