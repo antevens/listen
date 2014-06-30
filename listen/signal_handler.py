@@ -127,13 +127,18 @@ class SignalHandler(object):
     def status(self, signum):
         """ Run all status tasks, then run all tasks in the resume queue"""
         self.log.debug('Signal handler got status signal')
+        new_status_callbacks = []
         for status_call in self.status_callbacks:
             # If callback is non persistent we remove it
-            if not status_call['persistent']:
-                self.status_callbacks.remove(status_call)
-            self.log.debug("Calling {0}({1},{2})".format(status_call['function'].__name__, status_call['args'], status_call['kwargs']))
-            apply(status_call['function'], status_call['args'], status_call['kwargs'])
+            try:
+                self.log.debug("Calling {0}({1},{2})".format(status_call['function'].__name__, status_call['args'], status_call['kwargs']))
+            except AttributeError:
+                self.log.debug("Calling unbound function/method {0}".format(str(status_call)))
 
+            apply(status_call['function'], status_call['args'], status_call['kwargs'])
+            if status_call['persistent']:
+                new_status_callbacks.append(status_call)
+        self.status_callbacks = new_status_callbacks
         self._resume(signum)
 
     def resume(self, signum):
@@ -142,35 +147,43 @@ class SignalHandler(object):
 
     def _abort(self, signum):
         self.log.debug('Signal handler initiated abort/cleanup')
-        #current_handler = signal.getsignal(signum)
+        current_handler = signal.getsignal(signum)
+        new_abort_callbacks = []
         self.set_handler(self.abort_signals, self.pseudo_handler)
         for abort_call in self.abort_callbacks[:]:
-            self.abort_callbacks.remove(abort_call)
+            if not abort_call['persistent']:
+                new_abort_callbacks.append(abort_call)
             self._log_event(abort_call)
             apply(abort_call['function'], abort_call['args'], abort_call['kwargs'])
-        #self.set_handler(self.abort_signals, current_handler)
+        self.abort_callbacks = new_abort_callbacks
+        self.set_handler(self.abort_signals, current_handler)
 
     def _exit(self, signum):
         self.log.info('Signal handler initiated exit')
-        #current_handler = signal.getsignal(signum)
+        current_handler = signal.getsignal(signum)
+        new_exit_callbacks = []
         self.set_handler(self.abort_signals, self.pseudo_handler)
         for exit_call in self.exit_callbacks[:]:
-            self.exit_callbacks.remove(exit_call)
+            if not exit_call['persistent']:
+                new_exit_callbacks.append(exit_call)
             self._log_event(exit_call)
             apply(exit_call['function'], exit_call['args'], exit_call['kwargs'])
-        #self.set_handler(self.abort_signals, current_handler)
+        self.exit_callbacks = new_exit_callbacks
+        self.set_handler(self.abort_signals, current_handler)
 
     def _resume(self, signum):
         self.log.debug('Signal handler processing resume tasks')
         resume_handler = signal.getsignal(signum)
         pause_handler = signal.getsignal(signal.SIGTSTP)
+        new_resume_callbacks = []
         self.set_handler(self.resume_signals, self.pseudo_handler)
         self.set_handler(self.pause_signals, self.pseudo_handler)
         for resume_call in self.resume_callbacks:
             if not resume_call['persistent']:
-                self.resume_callbacks.remove(resume_call)
+                new_resume_callbacks.append(resume_call)
             self._log_event(resume_call)
             apply(resume_call['function'], resume_call['args'], resume_call['kwargs'])
+        self.resume_callbacks = new_resume_callbacks
         self.set_handler(self.resume_signals, resume_handler)
         self.set_handler(self.pause_signals, pause_handler)
 

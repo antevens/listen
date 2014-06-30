@@ -24,7 +24,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import sys
 import os
 import logging
 import listen
@@ -64,7 +63,8 @@ class Example(object):
         self.log.info("Running tests... Pass SIGINFO (ctrl-t) to skip")
 
         # Register signal handler to cancel tests on SIGINFO (ctrl-t on Mac)
-        kill_event = self.sig_hand.reg_on_status(self.kill_external)
+        kill_event = self.sig_hand.reg_on_status(self.kill_external, persistent=True)
+        self.sig_hand.reg_on_status(self.log.info, self, "Second Task executed")
 
         # Run tests that can be skipped by passing a SIGINFO to this process
         self.run('bash', '-c', 'sleep 10')
@@ -107,8 +107,8 @@ class Example(object):
         """
         self.log.debug("Running '%s'", ' '.join([command] + list(args)))
         self.external_running_process = subprocess.Popen([command] + list(args),
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.STDOUT)
+                                                         stdout=subprocess.PIPE,
+                                                         stderr=subprocess.STDOUT)
         # Capture results so they can be returned, but also pass them to logger
         # so they can stored and/or output to user.
         result = ''
