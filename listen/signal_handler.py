@@ -229,31 +229,35 @@ class SignalHandler(object):
     def del_resume_event(self, event):
         self._unreg_event(self.resume_callbacks, event)
 
-    def reg_on_exit(self, callable_object, persistent=False, *args, **kwargs):
+    def reg_on_exit(self, callable_object, *args, **kwargs):
         """ Register a function/method to be called on program exit,
-        will get executed regardless of successs/failure of the execution """
+        will get executed regardless of successs/failure of the program running """
+        persistent = kwargs.pop('persistent', False)
         event = self._create_event(callable_object, 'exit', persistent, *args, **kwargs)
         self.exit_callbacks.append(event)
         return event
 
-    def reg_on_abort(self, callable_object, persistent=False, *args, **kwargs):
-        """ Register a function/method to be called on aborting execution """
+    def reg_on_abort(self, callable_object, *args, **kwargs):
+        """ Register a function/method to be called when execution is aborted"""
+        persistent = kwargs.pop('persistent', False)
         event = self._create_event(callable_object, 'abort', persistent, *args, **kwargs)
         self.abort_callbacks.append(event)
         return event
 
-    def reg_on_status(self, callable_object, persistent=False, *args, **kwargs):
+    def reg_on_status(self, callable_object, *args, **kwargs):
         """ Register a function/method to be called when a user or another
         program asks for an update, when status is done it will start running
         any tasks registered with the reg_on_resume method"""
+        persistent = kwargs.pop('persistent', False)
         event = self._create_event(callable_object, 'status', persistent, *args, **kwargs)
         self.status_callbacks.append(event)
         return event
 
-    def reg_on_resume(self, callable_object, persistent=False, *args, **kwargs):
+    def reg_on_resume(self, callable_object, *args, **kwargs):
         """ Register a function/method to be called if the system needs to
         resume a previously halted or paused execution, including status
         requests."""
+        persistent = kwargs.pop('persistent', False)
         event = self._create_event(callable_object, 'resume', persistent, *args, **kwargs)
         self.resume_callbacks.append(event)
         return event
