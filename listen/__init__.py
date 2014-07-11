@@ -37,4 +37,4 @@ from listen.signal_handler import SignalHandler
 
 __all__ = ["listen"]
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"

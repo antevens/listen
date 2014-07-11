@@ -64,7 +64,7 @@ class Example(object):
 
         # Register signal handler to cancel tests on SIGINFO (ctrl-t on Mac)
         kill_event = self.sig_hand.reg_on_status(self.kill_external, persistent=True)
-        self.sig_hand.reg_on_status(self.log.info, "Second Task executed", "Bungle", sta="Bubbles")
+        self.sig_hand.reg_on_status(self.log.info, "Second Task executed")
 
         # Run tests that can be skipped by passing a SIGINFO to this process
         self.run('bash', '-c', 'sleep 10')

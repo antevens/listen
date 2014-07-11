@@ -36,7 +36,7 @@ files = ["README.md"]
 
 setup(
     name = "listen",
-    version = "0.1.3",
+    version = "0.1.4",
     author = "Jarl Stefansson",
     author_email = "jarl.stefansson@gmail.com",
     packages = ["listen", "test"],
