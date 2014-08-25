@@ -52,7 +52,7 @@ class SignalHandler(object):
         self.resume_callbacks = []
         self.set_handler(signals, handler)
 
-    def set_handler(self, signals, handler):
+    def set_handler(self, signals, handler=signal.SIG_DFL):
         """ Takes a list of signals and sets a handler for them """
         for sig in signals:
             self.log.debug("Creating handler for signal: {0}".format(sig))
