@@ -40,10 +40,10 @@ subprocess.call(["python", "setup.py", "clean", "--all"])
 subprocess.call(["python", "setup.py", "sdist"])
 
 # Create Windows Installer
-subprocess.call(["python", "setup.py", "bdist_msi"])
+#subprocess.call(["python", "setup.py", "bdist_msi"])
 
 # Create an RPM package
-subprocess.call(["python", "setup.py", "bdist_rpm"])
+#subprocess.call(["python", "setup.py", "bdist_rpm"])
 
 # Create a DEB package
 # http://wiki.debian.org/Python/Packaging
