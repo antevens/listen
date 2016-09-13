@@ -3,7 +3,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2014 Jarl Stefansson
+Copyright (c) 2014 Antonia Stevens
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,21 +35,21 @@ except ImportError:
 files = ["README.md"]
 
 setup(
-    name = "listen",
-    version = "0.1.5",
-    author = "Jarl Stefansson",
-    author_email = "jarl.stefansson@gmail.com",
-    packages = ["listen", "test"],
-    scripts = (),
-    url = "https://github.com/jalli/listen",
-    keywords = ["signal", "unix", "kill", "abort", "quit", "info"],
-    license = "LICENSE",
-    description = "Simple but powerful signal handling to process OS signals in python",
-    long_description = open("README").read(),
+    name="listen",
+    version="0.1.6",
+    author="Antonia Stevens",
+    author_email="a@antevens.com",
+    packages=["listen", "test"],
+    scripts=(),
+    url="https://github.com/antevens/listen",
+    keywords=["signal", "unix", "kill", "abort", "quit", "info"],
+    license="LICENSE",
+    description="Simple but powerful signal handling to process OS signals in python",
+    long_description=open("README").read(),
     # Support both formats for required packages, build automatically
-    install_requires = (),
-    requires = (),
-    classifiers = [
+    install_requires=(),
+    requires=(),
+    classifiers=[
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
         "Development Status :: 4 - Beta",
@@ -60,5 +60,5 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Topic :: Software Development :: Libraries :: Python Modules"
-        ]
+    ]
 )
